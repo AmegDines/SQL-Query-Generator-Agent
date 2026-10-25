@@ -1,0 +1,48 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "finch-agent"
+version = "1.0.0"
+description = "Slack conversational assistant for governed financial data access"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.115,<1",
+  "uvicorn[standard]>=0.30,<1",
+  "pydantic-settings>=2.5,<3",
+  "sqlalchemy>=2.0,<3",
+  "httpx>=0.27,<1",
+  "structlog>=24.4,<26",
+  "chromadb==1.5.9",
+  "langgraph>=1.2.16,<2",
+  "langchain-core>=1.2.22,<2",
+  "langgraph-checkpoint-sqlite>=3.1.2,<4",
+  "langgraph-checkpoint-postgres>=3.1.3,<4",
+  "psycopg[binary,pool]>=3.2,<4",
+]
+
+[project.optional-dependencies]
+slack = ["slack-bolt>=1.21,<2"]
+openai = ["openai>=1.50,<3"]
+documents = ["pypdf>=5,<7"]
+postgres = ["psycopg[binary,pool]>=3.2,<4"]
+test = ["pytest>=8,<9", "pytest-cov>=5,<8"]
+dev = ["pytest>=8,<9", "pytest-cov>=5,<8", "ruff>=0.11,<1"]
+evaluation = ["ragas>=0.4,<1"]
+all = ["slack-bolt>=1.21,<2", "openai>=1.50,<3", "pypdf>=5,<7"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/finch_agent"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+packages = ["finch_agent"]

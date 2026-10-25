@@ -1,0 +1,10 @@
+[
+  {
+    "table_name": "finance_bookings",
+    "domain": "finance",
+    "description": "Example table of financial bookings. Replace this example with approved production schema metadata.",
+    "columns": ["booking_date DATE", "gross_bookings DECIMAL", "region TEXT"],
+    "access_level": "finance_read_only",
+    "aliases": ["gross bookings", "GB", "GBs"]
+  }
+]

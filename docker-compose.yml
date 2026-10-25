@@ -1,0 +1,27 @@
+services:
+  finch-agent:
+    build: .
+    env_file: .env
+    ports:
+      - "8000:8000"
+    environment:
+      CHROMA_HOST: chroma
+      CHROMA_PORT: 8000
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      chroma:
+        condition: service_healthy
+    restart: unless-stopped
+  chroma:
+    image: ghcr.io/chroma-core/chroma:1.5.9
+    volumes:
+      - chroma-data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v2/heartbeat')"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+volumes:
+  chroma-data:

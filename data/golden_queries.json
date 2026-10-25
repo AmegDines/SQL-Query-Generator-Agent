@@ -1,0 +1,26 @@
+[
+  {
+    "id": "TC_REG_01",
+    "question": "What was Gross Bookings in Q3 2026?",
+    "route": "sql_agent",
+    "sql": "SELECT SUM(gross_bookings) AS gross_bookings FROM finance_bookings WHERE booking_date >= '2026-07-01' AND booking_date < '2026-10-01'",
+    "author": "finch-demo-curation",
+    "sql_contains": ["finance_bookings", "gross_bookings"],
+    "columns": ["gross_bookings"],
+    "expected_rows": [[413250]],
+    "description": "Aggregate bookings for the Q3 2026 date range"
+  },
+  {
+    "id": "TC_REG_02",
+    "question": "Can you take a look at this for me?",
+    "route": "clarification",
+    "description": "Ask a clarifying question when intent is ambiguous"
+  },
+  {
+    "id": "TC_REG_03",
+    "question": "What does the demonstration data access policy say about database access?",
+    "route": "doc_rag_agent",
+    "citation_contains": ["sample_policy.md"],
+    "description": "Retrieve a report passage and preserve its document citation"
+  }
+]

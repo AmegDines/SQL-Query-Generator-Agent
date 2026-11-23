@@ -14,12 +14,16 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = Field(default=8000, ge=1, le=65535)
     slack_bot_token: SecretStr | None = None
-    slack_signing_secret: SecretStr | None = None
+    slack_app_token: SecretStr | None = None          # xapp-… required for Socket Mode
+    slack_signing_secret: SecretStr | None = None     # optional in Socket Mode
     slack_allowed_channels: str = ""
     api_auth_token: SecretStr | None = None
-    llm_provider: Literal["mock", "openai"] = "mock"
+    llm_provider: Literal["mock", "openai", "groq"] = "mock"
     openai_api_key: SecretStr | None = None
     openai_model: str = "gpt-4.1-mini"
+    groq_api_key: SecretStr | None = None
+    groq_base_url: str = "https://api.groq.com/openai/v1"
+    groq_model: str = "llama-3.3-70b-versatile"
     database_url: str = "sqlite:///./data/finch.db"
     database_read_only: bool = True
     query_timeout_seconds: int = Field(default=10, ge=1, le=120)
@@ -47,8 +51,8 @@ class Settings(BaseSettings):
     langsmith_project: str = "finch-agent"
 
     @field_validator(
-        "slack_bot_token", "slack_signing_secret", "api_auth_token", "openai_api_key",
-        "chroma_api_key", "checkpoint_database_url", "langsmith_api_key", mode="before",
+        "slack_bot_token", "slack_app_token", "slack_signing_secret", "api_auth_token", "openai_api_key",
+        "groq_api_key", "chroma_api_key", "checkpoint_database_url", "langsmith_api_key", mode="before",
     )
     @classmethod
     def normalize_empty_secrets(cls, value: Any) -> Any:

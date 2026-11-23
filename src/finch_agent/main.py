@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import asyncio
 import logging
@@ -32,11 +32,12 @@ event_deduplicator = EventDeduplicator()
 
 
 slack_handler: Any | None = None
+_socket_handler: Any | None = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global slack_handler
+    global _socket_handler
     asyncio.get_running_loop().set_default_executor(ThreadPoolExecutor(max_workers=settings.worker_threads))
     try:
         import anyio
@@ -44,20 +45,23 @@ async def lifespan(app: FastAPI):
     except ImportError:
         pass
     app.state.service = FinchService(settings)
-    if settings.slack_bot_token and settings.slack_signing_secret:
+    if settings.slack_bot_token and settings.slack_app_token:
         try:
             from slack_bolt.async_app import AsyncApp as SlackAsyncApp
-            from slack_bolt.adapter.fastapi.async_handler import AsyncSlackRequestHandler
+            from slack_bolt.adapter.socket_mode.async_handler import AsyncSocketModeHandler
         except ImportError as exc:
-            raise RuntimeError("Install the slack extra to enable Slack events") from exc
+            raise RuntimeError("Install the slack extra to enable Slack Socket Mode") from exc
         bolt = SlackAsyncApp(
             token=settings.slack_bot_token.get_secret_value(),
-            signing_secret=settings.slack_signing_secret.get_secret_value(),
-            process_before_response=False,
+            signing_secret=settings.slack_signing_secret.get_secret_value() if settings.slack_signing_secret else None,
         )
         register_slack(bolt, app.state.service)
-        slack_handler = AsyncSlackRequestHandler(bolt)
+        _socket_handler = AsyncSocketModeHandler(bolt, settings.slack_app_token.get_secret_value())
+        await _socket_handler.start_async()
+        log.info("slack_socket_mode_started", model=settings.groq_model if settings.llm_provider == "groq" else settings.openai_model)
     yield
+    if _socket_handler:
+        await _socket_handler.close_async()
     if hasattr(app.state, "service"):
         app.state.service.close()
 
@@ -70,9 +74,10 @@ if settings.app_env == "production":
         "API_AUTH_TOKEN": bool(settings.api_auth_token),
         "POSTGRES_REPORTING_DATABASE": settings.database_url.startswith("postgresql+psycopg://"),
         "SLACK_BOT_TOKEN": bool(settings.slack_bot_token),
-        "SLACK_SIGNING_SECRET": bool(settings.slack_signing_secret),
+        "SLACK_APP_TOKEN": bool(settings.slack_app_token),
         "OPENAI_API_KEY": bool(settings.openai_api_key) if settings.llm_provider == "openai" else True,
-        "LLM_PROVIDER=openai": settings.llm_provider == "openai",
+        "GROQ_API_KEY": bool(settings.groq_api_key) if settings.llm_provider == "groq" else True,
+        "LLM_PROVIDER=openai|groq": settings.llm_provider in ("openai", "groq"),
         "CHECKPOINT_DATABASE_URL": bool(settings.checkpoint_database_url),
         "CHROMA_HOST": bool(settings.chroma_host),
         "CHROMA_API_KEY": bool(settings.chroma_api_key),
@@ -104,9 +109,7 @@ def ready(request: Request) -> JSONResponse:
 
 @app.post("/slack/events")
 async def slack_events(request: Request) -> Any:
-    if slack_handler is None:
-        raise HTTPException(status_code=503, detail="Slack integration is not configured")
-    return await slack_handler.handle(request)
+    raise HTTPException(status_code=404, detail="Slack is running in Socket Mode — HTTP events endpoint is not used")
 
 
 @app.post("/v1/ask", response_model=AskResponse, dependencies=[Depends(authenticate)])
@@ -135,7 +138,7 @@ def slack_blocks(response: AskResponse) -> list[dict[str, Any]]:
         blocks.append({"type": "section", "text": {"type": "mrkdwn", "text": f"Executed SQL (read-only):\n```{response.sql[:2500]}```"}})
         blocks.append({"type": "context", "elements": [{"type": "mrkdwn", "text": f"Request `{response.request_id[:8]}`"}]})
     if response.citations:
-        cite = "\n".join(f"• {c.document}, p. {c.page}" for c in response.citations)
+        cite = "\n".join(f"â€¢ {c.document}, p. {c.page}" for c in response.citations)
         blocks.append({"type": "context", "elements": [{"type": "mrkdwn", "text": cite[:2800]}]})
     return blocks
 
@@ -160,7 +163,7 @@ def register_slack(app_: Any, service: FinchService) -> None:
             await say(text="What would you like me to look up?", thread_ts=event.get("thread_ts") or event.get("ts"))
             return
         response_thread = event.get("thread_ts") or event.get("ts")
-        status_message = await say(text="I’m checking the data and reports now…", thread_ts=response_thread)
+        status_message = await say(text="I'm checking the data and reports now...", thread_ts=response_thread)
         try:
             thread_ts = response_thread
             response = await asyncio.to_thread(
@@ -169,7 +172,7 @@ def register_slack(app_: Any, service: FinchService) -> None:
             await client.chat_update(channel=channel, ts=status_message["ts"],
                                      blocks=slack_blocks(response), text=response.answer)
         except Exception as exc:
-            logger.error("slack_request_failed", error_type=type(exc).__name__)
+            log.error("slack_request_failed", error_type=type(exc).__name__, error=str(exc))
             await client.chat_update(channel=channel, ts=status_message["ts"],
                                      text="I couldn't complete that request. Please try again later.")
 

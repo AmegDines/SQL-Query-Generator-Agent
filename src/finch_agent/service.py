@@ -11,7 +11,7 @@ from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.graph import END, START, StateGraph
 
 from .config import Settings
-from .llm import LanguageModel, MockLanguageModel
+from .llm import GroqLanguageModel, LanguageModel, MockLanguageModel
 from .models import AskRequest, AskResponse, SourceCitation
 from .sql_engine import ReadOnlyQueryEngine
 from .vector_store import VectorStore
@@ -60,6 +60,14 @@ class FinchService:
 
             self.llm: LanguageModel = OpenAILanguageModel(
                 settings.openai_api_key.get_secret_value(), settings.openai_model
+            )
+        elif settings.llm_provider == "groq":
+            if not settings.groq_api_key:
+                raise ValueError("GROQ_API_KEY is required when LLM_PROVIDER=groq")
+            self.llm = GroqLanguageModel(
+                api_key=settings.groq_api_key.get_secret_value(),
+                model=settings.groq_model,
+                base_url=settings.groq_base_url,
             )
         else:
             self.llm = MockLanguageModel()

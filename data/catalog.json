@@ -1,10 +1,94 @@
 [
   {
-    "table_name": "finance_bookings",
-    "domain": "finance",
-    "description": "Example table of financial bookings. Replace this example with approved production schema metadata.",
-    "columns": ["booking_date DATE", "gross_bookings DECIMAL", "region TEXT"],
+    "table_name": "niiha_contracts",
+    "domain": "sales",
+    "description": "Enterprise customer contracts including ACV, discount percentages, contract length in months, payment terms, product lines, geographic regions, approval authorities, and account statuses.",
+    "columns": [
+      "contract_id VARCHAR(20) PRIMARY KEY",
+      "client_name VARCHAR(100)",
+      "region VARCHAR(20)",
+      "product_line VARCHAR(50)",
+      "acv_usd DECIMAL(12, 2)",
+      "discount_pct DECIMAL(5, 2)",
+      "contract_months INT",
+      "payment_terms VARCHAR(20)",
+      "approved_by VARCHAR(50)",
+      "status VARCHAR(20)"
+    ],
     "access_level": "finance_read_only",
-    "aliases": ["gross bookings", "GB", "GBs"]
+    "aliases": [
+      "contracts",
+      "client contracts",
+      "deals",
+      "ACV",
+      "annual contract value",
+      "discount",
+      "discounts",
+      "discount leakage",
+      "payment terms",
+      "product line",
+      "regions",
+      "approval status",
+      "active contracts",
+      "at risk contracts"
+    ]
+  },
+  {
+    "table_name": "niiha_invoices",
+    "domain": "finance",
+    "description": "Billing invoices issued against enterprise contracts, tracking invoice amounts, due dates, calculated days overdue, and payment states (Paid, Pending, Overdue).",
+    "columns": [
+      "invoice_id VARCHAR(20) PRIMARY KEY",
+      "contract_id VARCHAR(20)",
+      "amount_usd DECIMAL(12, 2)",
+      "due_date DATE",
+      "days_overdue INT",
+      "payment_status VARCHAR(20)"
+    ],
+    "access_level": "finance_read_only",
+    "aliases": [
+      "invoices",
+      "bills",
+      "billing",
+      "accounts receivable",
+      "AR",
+      "overdue",
+      "overdue invoices",
+      "unpaid invoices",
+      "pending invoices",
+      "credit risk",
+      "receivables aging"
+    ]
+  },
+  {
+    "table_name": "niiha_expenses",
+    "domain": "operations",
+    "description": "Corporate operational, travel, and T&E expenditures categorized by department, expense category, city tier, USD amount, nights or attendees count, fiscal quarter, and receipt attachment status.",
+    "columns": [
+      "expense_id VARCHAR(20) PRIMARY KEY",
+      "department VARCHAR(50)",
+      "category VARCHAR(50)",
+      "city_tier VARCHAR(20)",
+      "amount_usd DECIMAL(10, 2)",
+      "nights_or_attendees INT",
+      "quarter VARCHAR(10)",
+      "receipt_attached BOOLEAN"
+    ],
+    "access_level": "finance_read_only",
+    "aliases": [
+      "expenses",
+      "expenditure",
+      "spend",
+      "travel expense",
+      "hotel",
+      "flight",
+      "client dining",
+      "cloud saas spend",
+      "department expenses",
+      "receipts",
+      "T&E",
+      "expense policy violations",
+      "quarterly budget"
+    ]
   }
 ]

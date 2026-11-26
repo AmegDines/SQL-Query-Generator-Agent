@@ -36,13 +36,8 @@ __pycache__/
 .tox/
 .nox/
 tests/
-Documentations/
-data/chroma/
-data/checkpoints.sqlite*
-data/*.db
-data/*.sqlite*
-data/reports/*
-!data/reports/sample_policy.md
+docs/
+data/storage/
 *.log
 *.tmp
 *.bak

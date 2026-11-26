@@ -1,6 +1,6 @@
 import pytest
 
-from finch_agent.llm import MockLanguageModel
+from finch_agent.core.llm import MockLanguageModel
 
 
 @pytest.mark.parametrize(("question", "route"), [

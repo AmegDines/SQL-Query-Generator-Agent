@@ -1,4 +1,4 @@
-from finch_agent.config import Settings
+from finch_agent.config.settings import Settings
 
 
 def test_empty_secrets_are_treated_as_unset():

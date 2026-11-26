@@ -1,0 +1,21 @@
+NIIHA TECHNOLOGIES PVT. LTD.
+STANDARD OPERATING PROCEDURE: CORPORATE EXPENSES & VENDOR PROCUREMENT
+Document ID: SOP-FIN-2026-04 | Effective Date: January 1, 2026
+
+1. TRAVEL & CLIENT ENTERTAINMENT LIMITS
+- Domestic Flight Bookings: Must be booked at least 14 days in advance. Economy class is mandatory for flights under 4 hours.
+- Hotel Accommodation Caps (Per Night, Excluding Taxes):
+  * Tier-1 Metro Cities (Bengaluru, Mumbai, Delhi NCR, San Francisco, London, New York): Maximum $280 / night (or ₹23,000 INR).
+  * Tier-2 Cities: Maximum $160 / night (or ₹13,000 INR).
+- Client Dining & Entertainment: Capped at $75 per attendee. Receipts are mandatory for any single expense exceeding $25. Alcohol reimbursement is prohibited unless pre-approved by a Department Head for executive client dinners.
+
+2. CLOUD INFRASTRUCTURE & SOFTWARE PROCUREMENT
+- Any recurring SaaS subscription or cloud GPU cluster allocation exceeding $2,500/month requires a FinOps Cost-Benefit Review.
+- Duplicate SaaS tools across Engineering and Data Science departments are strictly prohibited; all vector database and LLM API spend must route through the central Enterprise Gateway.
+- Unapproved Shadow IT expenses appearing on corporate cards will be flagged as policy violations during monthly reconciliation.
+
+3. DEPARTMENTAL QUARTERLY BUDGET CAPS (FY 2026)
+- Engineering & R&D: $450,000 / quarter
+- Sales & Marketing: $320,000 / quarter
+- Customer Success & Support: $140,000 / quarter
+- General & Administrative (G&A): $110,000 / quarter

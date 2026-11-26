@@ -5,10 +5,14 @@ import time
 from typing import Any
 
 from sqlalchemy import create_engine, text
+from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import OperationalError
 
-from .config import Settings
+from finch_agent.config.settings import Settings
+from finch_agent.core.observability import trace_step
+from finch_agent.core.guardrails import validate_sql_query
+from finch_agent.orchestration.state import ToolResult
 
 _FORBIDDEN = re.compile(
     r"\b(INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|TRUNCATE|REPLACE|MERGE|GRANT|REVOKE|CALL|COPY|ATTACH|DETACH|VACUUM|PRAGMA|EXEC|EXECUTE|INTO)\b",
@@ -57,16 +61,60 @@ class ReadOnlyQueryEngine:
         self.timeout = settings.query_timeout_seconds
         self.max_rows = settings.query_max_rows
 
-    def execute(self, sql: str) -> tuple[list[str], list[list[Any]], bool]:
-        safe_sql = validate_read_only_sql(sql)
+    @trace_step(run_type="tool")
+    def execute(self, sql: str) -> ToolResult:
+        """Validate and execute one bounded read-only query."""
+        try:
+            safe_sql = validate_sql_query(sql)
+        except ValueError as exc:
+            return ToolResult(status="error", query=sql, error_msg=str(exc),
+                              tables_used=self._tables_used(sql), guardrail_violation=True)
         for attempt in range(3):
             try:
-                return self._execute_once(safe_sql)
+                columns, values, truncated = self._execute_once(safe_sql)
+                rows = [dict(zip(columns, row)) for row in values]
+                return ToolResult(status="success", query=safe_sql, rows=rows, row_count=len(rows),
+                                  columns=columns, truncated=truncated, tables_used=self._tables_used(safe_sql),
+                                  error_msg="Results truncated at configured row cap" if truncated else None)
             except OperationalError as exc:
                 if attempt == 2 or not self._is_transient(exc):
-                    raise
+                    return ToolResult(status="error", query=safe_sql, error_msg=str(exc)[:500],
+                                      tables_used=self._tables_used(safe_sql))
                 time.sleep(0.1 * (2 ** attempt) + random.uniform(0, 0.1))
-        raise RuntimeError("Database retry loop ended unexpectedly")
+            except Exception as exc:
+                return ToolResult(status="error", query=safe_sql, error_msg=str(exc)[:500],
+                                  tables_used=self._tables_used(safe_sql))
+        return ToolResult(status="error", query=sql, error_msg="Database retry loop ended unexpectedly")
+
+    def get_schema_context(self, sample_rows: int = 2) -> list[dict[str, Any]]:
+        """Return live schema details and safe sample values for SQL grounding."""
+        """Inspect live tables and types and include a small, non-sensitive sample."""
+        inspector = sa_inspect(self.engine)
+        result: list[dict[str, Any]] = []
+        sensitive = re.compile(r"password|passwd|ssn|social.?security|api.?key|token|secret|salary", re.I)
+        quote = self.engine.dialect.identifier_preparer.quote
+        with self.engine.connect() as connection:
+            for table in sorted(inspector.get_table_names()):
+                if table.startswith("sqlite_"):
+                    continue
+                columns = inspector.get_columns(table)
+                safe_columns = [column for column in columns if not sensitive.search(column["name"])]
+                names = [column["name"] for column in safe_columns]
+                samples: list[dict[str, Any]] = []
+                if names and sample_rows > 0:
+                    projection = ", ".join(quote(name) for name in names)
+                    statement = text(f"SELECT {projection} FROM {quote(table)} LIMIT :sample_limit")
+                    samples = [dict(row._mapping) for row in connection.execute(
+                        statement, {"sample_limit": sample_rows}
+                    )]
+                result.append({"table_name": table,
+                               "columns": [{"name": item["name"], "type": str(item["type"])} for item in safe_columns],
+                               "sample_rows": samples})
+        return result
+
+    @staticmethod
+    def _tables_used(sql: str) -> list[str]:
+        return list(dict.fromkeys(re.findall(r"\b(?:FROM|JOIN)\s+([\w.\"`\[\]]+)", sql, re.I)))
 
     def _execute_once(self, safe_sql: str) -> tuple[list[str], list[list[Any]], bool]:
         with self.engine.connect() as connection:

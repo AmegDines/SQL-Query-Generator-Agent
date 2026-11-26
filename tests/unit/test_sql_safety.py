@@ -1,6 +1,6 @@
 import pytest
 
-from finch_agent.sql_engine import validate_read_only_sql
+from finch_agent.tools.sql_engine import validate_read_only_sql
 
 
 @pytest.mark.parametrize("statement", [

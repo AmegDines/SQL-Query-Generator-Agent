@@ -24,35 +24,41 @@ class Settings(BaseSettings):
     groq_api_key: SecretStr | None = None
     groq_base_url: str = "https://api.groq.com/openai/v1"
     groq_model: str = "llama-3.3-70b-versatile"
-    database_url: str = "sqlite:///./data/finch.db"
+    database_url: str = "sqlite:///./data/storage/finch.db"
     database_read_only: bool = True
     query_timeout_seconds: int = Field(default=10, ge=1, le=120)
     query_max_rows: int = Field(default=200, ge=1, le=1000)
     database_pool_size: int = Field(default=20, ge=1, le=200)
     database_max_overflow: int = Field(default=30, ge=0, le=200)
     worker_threads: int = Field(default=100, ge=10, le=500)
-    metadata_catalog_path: Path = Path("./data/catalog.json")
-    reports_directory: Path = Path("./data/reports")
-    chroma_path: Path = Path("./data/chroma")
+    metadata_catalog_path: Path = Path("./data/raw/catalog.json")
+    reports_directory: Path = Path("./data/raw/reports")
+    chroma_path: Path = Path("./data/storage/chroma")
     chroma_host: str | None = None
     chroma_port: int = Field(default=8000, ge=1, le=65535)
     chroma_ssl: bool = False
     chroma_tenant: str | None = None
     chroma_database: str | None = None
     chroma_api_key: SecretStr | None = None
-    checkpoint_path: Path = Path("./data/checkpoints.sqlite")
+    checkpoint_path: Path = Path("./data/storage/checkpoints.sqlite")
     checkpoint_database_url: SecretStr | None = None
     chroma_top_k: int = Field(default=5, ge=1, le=20)
+    min_relevance_score: float = Field(default=0.15, ge=0.0, le=1.0)
     report_chunk_size: int = Field(default=1200, ge=200, le=5000)
     report_max_file_mb: int = Field(default=20, ge=1, le=100)
     rate_limit_per_minute: int = Field(default=60, ge=1, le=1000)
+    langchain_tracing_v2: bool = False
+    langchain_api_key: SecretStr | None = None
+    langchain_project: str = "finch-agent"
+    # Deprecated aliases retained for existing .env files.
     langsmith_tracing: bool = False
     langsmith_api_key: SecretStr | None = None
     langsmith_project: str = "finch-agent"
 
     @field_validator(
         "slack_bot_token", "slack_app_token", "slack_signing_secret", "api_auth_token", "openai_api_key",
-        "groq_api_key", "chroma_api_key", "checkpoint_database_url", "langsmith_api_key", mode="before",
+        "groq_api_key", "chroma_api_key", "checkpoint_database_url", "langsmith_api_key",
+        "langchain_api_key", mode="before",
     )
     @classmethod
     def normalize_empty_secrets(cls, value: Any) -> Any:

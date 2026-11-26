@@ -1,5 +1,5 @@
-from finch_agent.main import slack_blocks
-from finch_agent.models import AskResponse
+from finch_agent.integrations.slack import slack_blocks
+from finch_agent.orchestration.state import AskResponse
 
 
 def test_sql_results_render_as_block_kit_table():

@@ -1,9 +1,9 @@
 import json
 import sqlite3
 
-from finch_agent.config import Settings
-from finch_agent.models import AskRequest, RouteDecision
-from finch_agent.service import FinchService
+from finch_agent.config.settings import Settings
+from finch_agent.orchestration.state import AskRequest, RouteDecision
+from finch_agent.orchestration.workflow import FinchService
 
 
 class EmptyVectors:
@@ -18,7 +18,7 @@ class CorrectingModel:
     def __init__(self):
         self.generated = 0
 
-    def route(self, question: str):
+    def route(self, question: str, system_prompt: str | None = None):
         return RouteDecision(destination="sql_agent")
 
     def generate_sql(self, question: str, metadata, error=None):

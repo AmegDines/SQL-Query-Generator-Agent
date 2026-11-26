@@ -9,8 +9,9 @@ from typing import Any
 import chromadb
 import structlog
 
-from .config import Settings
-from .models import SourceCitation
+from finch_agent.config.settings import Settings
+from finch_agent.core.observability import trace_step
+from finch_agent.core.guardrails import sanitize_retrieved_docs
 
 log = structlog.get_logger(__name__)
 
@@ -105,13 +106,15 @@ class VectorStore:
         golden_entries = json.loads(golden_path.read_text(encoding="utf-8")) if golden_path.exists() else []
         golden_records = []
         for index, item in enumerate(golden_entries):
-            if not isinstance(item, dict) or not item.get("question") or not item.get("sql"):
+            question = item.get("question", item.get("query")) if isinstance(item, dict) else None
+            sql = item.get("sql", item.get("reference_sql")) if isinstance(item, dict) else None
+            if not isinstance(item, dict) or not question or not sql:
                 continue
             record_id = str(item.get("id") or f"golden-{index}")
-            record_text = f"Question: {item['question']}\nSQL: {item['sql']}"
+            record_text = f"Question: {question}\nSQL: {sql}"
             golden_records.append((_stable_id("golden", record_id), record_text,
                                   {"source": "golden", "golden_id": record_id,
-                                   "sql": str(item["sql"]), "author": str(item.get("author", "curated"))}))
+                                   "sql": str(sql), "author": str(item.get("author", "curated"))}))
         self._replace_source(self.golden, "golden", golden_records)
 
     def _report_chunks(self, path: Path) -> list[tuple[int, str]]:
@@ -152,11 +155,13 @@ class VectorStore:
                         record_id = _stable_id("report", relative, str(page), chunk)
                         records.append((record_id, chunk, {
                             "source": "report", "document": relative, "page": page,
+                            "section": self._section_name(chunk, path.stem),
                         }))
                 except (OSError, ValueError, RuntimeError):
                     log.exception("report_index_failed", report=relative)
         self._replace_source(self.reports, "report", records)
 
+    @trace_step(run_type="retriever")
     def search_metadata(self, query: str, limit: int | None = None) -> list[dict[str, Any]]:
         count = limit or self.settings.chroma_top_k
         found: dict[tuple[str, str], dict[str, Any]] = {}
@@ -172,15 +177,31 @@ class VectorStore:
                 found[key] = value
         return sorted(found.values(), key=lambda item: item["distance"])[:count * 2]
 
-    def search_reports(self, query: str, limit: int | None = None) -> list[SourceCitation]:
+    @trace_step(run_type="retriever")
+    def search_reports(self, query: str, limit: int | None = None) -> list[dict[str, Any]]:
+        """Return relevant report chunks with source and section citations."""
         count = limit or self.settings.chroma_top_k
         if self.reports.count() == 0:
             return []
         results = self.reports.query(query_texts=[query], n_results=min(count, self.reports.count()),
                                      include=["documents", "metadatas", "distances"])
-        citations: list[SourceCitation] = []
-        for document, metadata in zip(results["documents"][0], results["metadatas"][0]):
+        citations: list[dict[str, Any]] = []
+        for chunk_id, document, metadata, distance in zip(
+            results["ids"][0], results["documents"][0], results["metadatas"][0], results["distances"][0]
+        ):
             metadata = metadata or {}
-            citations.append(SourceCitation(document=str(metadata.get("document", "unknown")),
-                                            page=int(metadata.get("page", 1)), excerpt=str(document)))
+            score = max(0.0, min(1.0, 1.0 - float(distance) / 2.0))
+            if score < self.settings.min_relevance_score:
+                continue
+            source = str(metadata.get("document", "unknown"))
+            content = sanitize_retrieved_docs(str(document), source)
+            citations.append({"chunk_id": str(chunk_id), "source_file": source,
+                              "section": str(metadata.get("section", Path(source).stem)),
+                              "score": score, "content": content, "document": source,
+                              "page": int(metadata.get("page", 1)), "excerpt": content})
         return citations
+
+    @staticmethod
+    def _section_name(chunk: str, fallback: str) -> str:
+        heading = re.search(r"^#{1,6}\s+(.+)$", chunk, re.M)
+        return heading.group(1).strip() if heading else fallback

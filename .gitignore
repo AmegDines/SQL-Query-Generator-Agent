@@ -48,8 +48,10 @@ data/*.sqlite
 data/*.sqlite3
 data/*.sqlite-*
 data/*.db-*
-data/chroma/
-data/checkpoints.sqlite*
+data/storage/*
+!data/storage/.gitkeep
+chroma/
+**/chroma/
 *.db
 *.sqlite
 *.sqlite3
@@ -57,11 +59,6 @@ data/checkpoints.sqlite*
 *.parquet
 *.arrow
 *.feather
-
-# Generated reports (keep the checked-in example policy)
-data/reports/*
-!data/reports/.gitkeep
-!data/reports/sample_policy.md
 
 # Logs, temporary files, and local tooling
 *.log
@@ -77,3 +74,5 @@ Thumbs.db
 # Build outputs
 dist/
 build/
+eval_report.json
+eval_report.md

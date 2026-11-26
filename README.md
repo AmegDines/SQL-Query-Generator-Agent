@@ -24,9 +24,9 @@ python scripts/init_sample_db.py
 docker compose up -d chroma
 ```
 
-Configure `LLM_PROVIDER=openai`, `OPENAI_API_KEY`, `OPENAI_MODEL`, and `DATABASE_URL` for live answers. The `mock` provider can route basic questions but intentionally cannot generate SQL or synthesize report answers. Set Slack credentials to enable Slack. Add approved `.txt`, `.md`, and `.pdf` sources under `data/reports/`; Finch indexes them at startup.
+Configure `LLM_PROVIDER=openai`, `OPENAI_API_KEY`, `OPENAI_MODEL`, and `DATABASE_URL` for live answers. The `mock` provider can route basic questions but intentionally cannot generate SQL or synthesize report answers. Set Slack credentials to enable Slack. Add approved `.txt`, `.md`, and `.pdf` sources under `data/raw/reports/`; Finch indexes them at startup.
 
-The sample schema and records are illustrative demonstration data, not company financial data. Replace `data/catalog.json` with the approved production schema and aliases before asking company questions. Add human-reviewed question/SQL pairs to `data/golden_queries.json`.
+The sample schema and records are illustrative demonstration data, not company financial data. Replace `data/raw/catalog.json` with the approved production schema and aliases before asking company questions. Add human-reviewed question/SQL pairs to `data/raw/golden_queries.json`.
 
 ```powershell
 uvicorn finch_agent.main:app --reload
@@ -85,8 +85,9 @@ Run automated regression tests with:
 python -m pytest
 ```
 
-The data file under `data/golden_queries.json` contains baseline routing, SQL-result, and citation expectations. Expand it with reviewed representative questions for the actual organization; the target first-pass SQL execution accuracy is at least 92%. The supplied demo has only one SQL benchmark, so it is an executable example, not evidence that the production target has been met.
+The data file under `data/raw/golden_queries.json` contains baseline routing, SQL-result, and citation expectations. Expand it with reviewed representative questions for the actual organization; the target first-pass SQL execution accuracy is at least 92%. The supplied demo has only one SQL benchmark, so it is an executable example, not evidence that the production target has been met.
 
 ## Operational notes
 
 Chroma's embedded persistent client is for local development; production uses server-backed Chroma. Scanned PDFs need OCR before indexing. The in-process rate limiter is shared by workers only within one process; deploy a gateway or shared limiter when using multiple replicas. Checkpoints contain conversation data, so enforce database access controls, backups, and retention at the PostgreSQL layer. SQL safeguards are defense in depth; database permissions remain the security boundary. The supplied folder does not contain real database schemas, report content, or credentials, so production configuration and corpus onboarding remain deployment tasks.
+
